@@ -3,12 +3,16 @@ import { getServerSupabase } from "@/lib/supabase";
 
 /**
  * TEMPORARY diagnostic endpoint. Reports which env vars are set
- * (without exposing values) and attempts a Supabase round-trip.
+ * (without exposing values) and attempts a Supabase round-trip
+ * using the same columns the production page uses.
  *
  * REMOVE this file once Phase 2 validation is complete.
  *
  * Visit: https://kb-sites-sooty.vercel.app/api/debug
  */
+const SAMPLE_COLUMNS =
+  "id, slug, company_name, category, phone, formatted_address, city, generated_copy";
+
 export async function GET() {
   const checks = {
     NEXT_PUBLIC_SUPABASE_URL: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -28,16 +32,16 @@ export async function GET() {
   let supabaseTest: {
     ok: boolean;
     error?: string;
-    rowCount?: number;
-    sampleSlug?: string | null;
-    matchedEFOxnard?: boolean;
+    found?: boolean;
+    company?: string | null;
+    category?: string | null;
   };
 
   try {
     const supabase = getServerSupabase();
     const { data, error } = await supabase
       .from("leads")
-      .select("slug")
+      .select(SAMPLE_COLUMNS)
       .eq("slug", "e-f-oxnard-oxn")
       .maybeSingle();
 
@@ -46,8 +50,9 @@ export async function GET() {
     } else {
       supabaseTest = {
         ok: true,
-        matchedEFOxnard: !!data,
-        sampleSlug: data?.slug ?? null,
+        found: !!data,
+        company: data?.company_name ?? null,
+        category: data?.category ?? null,
       };
     }
   } catch (err) {

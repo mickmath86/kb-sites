@@ -6,10 +6,8 @@ import { ElectricianTemplate } from "@/components/templates/ElectricianTemplate"
 // SSG with ISR — pages render once at build time then revalidate every 5 minutes
 // (or instantly via /api/revalidate). Slugs not built at build time will 404
 // unless they were generated post-build and trigger revalidate.
-// TEMP: force-dynamic while we debug. Revert to ISR (revalidate = 300) once stable.
-export const dynamic = "force-dynamic";
 export const dynamicParams = true;
-export const revalidate = 0;
+export const revalidate = 300; // 5 min
 
 export async function generateStaticParams() {
   const rows = await getAllSlugs();
@@ -40,17 +38,7 @@ export default async function SitePage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  console.log("[SitePage] resolving slug:", JSON.stringify(slug));
   const lead = await getLeadBySlug(slug);
-  console.log(
-    "[SitePage] lead lookup",
-    JSON.stringify({
-      slug,
-      found: !!lead,
-      company: lead?.company_name ?? null,
-      category: lead?.category ?? null,
-    })
-  );
   if (!lead) notFound();
 
   switch (lead.category) {

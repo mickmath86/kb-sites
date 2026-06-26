@@ -237,7 +237,7 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
               {lead.company_name}
             </div>
             <div className="text-xs text-zinc-500">
-              {lead.address ?? lead.city ?? "Ventura County, CA"}
+              {lead.formatted_address ?? lead.city ?? "Ventura County, CA"}
             </div>
           </div>
           <KickbordBadge />
