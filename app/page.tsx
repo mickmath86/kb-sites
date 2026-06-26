@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-// Marketing root — shown only at the apex domain (e.g. preview.kickbord.com).
+// Marketing root — shown only at the apex domain (e.g. sites.kickbord.com).
 // Wildcard subdomains are rewritten by proxy.ts to /_sites/[slug].
 export default function Home() {
   return (
@@ -16,7 +16,7 @@ export default function Home() {
       <p className="mt-4 max-w-md text-lg text-zinc-400">
         Each Kickbord prospect gets their own live preview site at{" "}
         <code className="rounded bg-white/10 px-1.5 py-0.5 text-sm">
-          [their-slug].preview.kickbord.com
+          [their-slug].sites.kickbord.com
         </code>
         .
       </p>

@@ -3,7 +3,7 @@
 One Next.js app that serves a personalized preview website for every Kickbord prospect at:
 
 ```
-<slug>.preview.kickbord.com
+<slug>.sites.kickbord.com
 ```
 
 Each preview is a static HTML page, generated once, served from Vercel's edge, and driven entirely by the prospect's row in `leads` in Supabase (`kb-smb-outreach`).
@@ -19,7 +19,7 @@ Each preview is a static HTML page, generated once, served from Vercel's edge, a
 
 ## How a preview renders
 
-1. Visitor hits `ef-oxnard-oxn.preview.kickbord.com`.
+1. Visitor hits `ef-oxnard-oxn.sites.kickbord.com`.
 2. `proxy.ts` reads the host, extracts the subdomain (`ef-oxnard-oxn`), and rewrites internally to `/_sites/ef-oxnard-oxn`.
 3. `app/_sites/[slug]/page.tsx` fetches the lead by slug, picks the right trade template, and renders.
 4. Page is static (`revalidate = 300`). New leads added later are built on-demand and cached.
@@ -39,9 +39,9 @@ Two ways to test a preview locally:
 - **Query param shortcut** — `http://localhost:3000/?slug=ef-oxnard-oxn` (proxy detects localhost and rewrites internally).
 - **Real subdomain on localhost** — add to `/etc/hosts`:
   ```
-  127.0.0.1 ef-oxnard-oxn.preview.localhost
+  127.0.0.1 ef-oxnard-oxn.sites.localhost
   ```
-  then visit `http://ef-oxnard-oxn.preview.localhost:3000`.
+  then visit `http://ef-oxnard-oxn.sites.localhost:3000`.
 
 ## Generate copy for prospects
 
@@ -71,13 +71,13 @@ The script also pings `/api/revalidate` so the static page rebuilds within secon
    - `NEXT_PUBLIC_POSTHOG_HOST`
    - `OPENROUTER_API_KEY` (only needed if running the generator on Vercel)
    - `REVALIDATE_SECRET` (any random string)
-   - `NEXT_PUBLIC_PREVIEW_ROOT_DOMAIN` = `preview.kickbord.com`
-3. **Wildcard domain** — Vercel → Domains → add `*.preview.kickbord.com` and `preview.kickbord.com`. Vercel will give you the CNAME to point your DNS at.
+   - `NEXT_PUBLIC_PREVIEW_ROOT_DOMAIN` = `sites.kickbord.com`
+3. **Wildcard domain** — Vercel → Domains → add `*.sites.kickbord.com` and `sites.kickbord.com`. Vercel will give you the CNAME to point your DNS at.
 4. **DNS** — at your registrar/DNS provider, add:
-   - `preview.kickbord.com` → `cname.vercel-dns.com`
-   - `*.preview.kickbord.com` → `cname.vercel-dns.com`
+   - `sites.kickbord.com` → `cname.vercel-dns.com`
+   - `*.sites.kickbord.com` → `cname.vercel-dns.com`
 
-After deploy, visit any prospect's preview at `<slug>.preview.kickbord.com`.
+After deploy, visit any prospect's preview at `<slug>.sites.kickbord.com`.
 
 ## Schema
 
