@@ -35,6 +35,6 @@ export async function POST(req: NextRequest) {
   if (!slug) {
     return NextResponse.json({ error: "slug is required" }, { status: 400 });
   }
-  revalidatePath(`/_sites/${slug}`);
+  revalidatePath(`/s/${slug}`);
   return NextResponse.json({ revalidated: true, slug });
 }

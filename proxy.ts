@@ -4,11 +4,13 @@ import type { NextRequest } from "next/server";
 /**
  * Wildcard subdomain proxy.
  *
- * Incoming:  ef-oxnard-oxn.sites.kickbord.com/  →  rewrite to /_sites/ef-oxnard-oxn
+ * Incoming:  ef-oxnard-oxn.sites.kickbord.com/  →  rewrite to /s/ef-oxnard-oxn
  * Apex (sites.kickbord.com)                     →  pass through (marketing root)
  * Local dev: ef-oxnard-oxn.sites.localhost:3000 →  same rewrite
  *
  * NOTE: Next 16 renamed middleware.ts → proxy.ts and the exported fn must be named `proxy`.
+ * NOTE: Internal route lives at /s/[slug] (NOT /_sites/...) — folders prefixed with
+ * `_` are private folders in App Router and excluded from routing.
  */
 
 // What we treat as "sites.kickbord.com" or "sites.localhost".
@@ -41,7 +43,7 @@ export function proxy(request: NextRequest) {
   // Never rewrite Next internals, static, public, or API
   if (
     pathname.startsWith("/_next") ||
-    pathname.startsWith("/_sites") ||
+    pathname.startsWith("/s/") ||
     pathname.startsWith("/api") ||
     pathname.startsWith("/favicon") ||
     pathname === "/robots.txt" ||
@@ -60,7 +62,7 @@ export function proxy(request: NextRequest) {
     const slugParam = request.nextUrl.searchParams.get("slug");
     if (slugParam) {
       const url = request.nextUrl.clone();
-      url.pathname = `/_sites/${slugParam}`;
+      url.pathname = `/s/${slugParam}`;
       url.search = "";
       return NextResponse.rewrite(url);
     }
@@ -77,7 +79,7 @@ export function proxy(request: NextRequest) {
 
   // Rewrite to internal /_sites/[slug]
   const url = request.nextUrl.clone();
-  url.pathname = `/_sites/${subdomain}${pathname === "/" ? "" : pathname}`;
+  url.pathname = `/s/${subdomain}${pathname === "/" ? "" : pathname}`;
   return NextResponse.rewrite(url);
 }
 
