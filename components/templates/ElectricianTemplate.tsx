@@ -80,7 +80,7 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
         finished={images.finished}
         theme={theme}
       />
-      <Footer lead={lead} credits={images.all_credits} />
+      <Footer lead={lead} credits={images.all_credits} theme={theme} />
     </div>
   );
 }

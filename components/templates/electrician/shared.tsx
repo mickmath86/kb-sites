@@ -1,10 +1,12 @@
 import Image from "next/image";
+import Link from "next/link";
 import type { Lead, GeneratedCopy } from "@/lib/supabase";
 import type { VariantTheme } from "@/lib/variant";
 import type { ImageAsset } from "@/lib/images";
 import { BookingButton } from "@/components/BookingButton";
 import { ElectricianEstimator } from "@/components/ElectricianEstimator";
 import { KickbordBadge } from "@/components/KickbordBadge";
+import { Nav } from "./Nav";
 
 /**
  * Shared electrician primitives used across all 3 design variants.
@@ -111,6 +113,9 @@ export function Stars({ rating, accent = "text-amber-400" }: { rating: number; a
 }
 
 // ---- Header (variant-aware) ----
+//
+// The actual header is the client-side `Nav` component (mobile menu state).
+// This wrapper just bridges server-component templates to it.
 
 export function Header({
   lead,
@@ -122,40 +127,14 @@ export function Header({
   theme: VariantTheme;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-zinc-200 bg-white/85 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
-        <div className="flex items-center gap-3">
-          <div
-            className={`flex h-9 w-9 items-center justify-center text-white ${theme.accent.bg} ${
-              theme.badgeShape === "pill" ? "rounded-full" : "rounded-md"
-            }`}
-          >
-            <BoltIcon className="h-5 w-5" />
-          </div>
-          <div className="text-lg font-bold tracking-tight text-zinc-900">
-            {lead.company_name}
-          </div>
-        </div>
-        <div className="hidden items-center gap-3 sm:flex">
-          {lead.phone && (
-            <a
-              href={`tel:${lead.phone}`}
-              className="text-sm font-semibold text-zinc-700 hover:text-zinc-900"
-            >
-              {lead.phone}
-            </a>
-          )}
-          <BookingButton
-            label={copy.hero_cta_label}
-            variant="primary"
-            leadId={lead.id}
-            slug={lead.slug}
-            source="header"
-            accentClasses={accentClassesFor(theme)}
-          />
-        </div>
-      </div>
-    </header>
+    <Nav
+      lead={lead}
+      copy={copy}
+      theme={theme}
+      accentBtnClasses={accentClassesFor(theme)}
+      badgeShape={theme.badgeShape}
+      BoltMark={<BoltIcon className="h-5 w-5" />}
+    />
   );
 }
 
@@ -386,9 +365,11 @@ export function FinalCtaSection({
 export function Footer({
   lead,
   credits,
+  theme,
 }: {
   lead: Lead;
   credits: { photographer: string; photographer_url: string }[];
+  theme?: VariantTheme;
 }) {
   return (
     <footer className="border-t border-zinc-200 bg-white py-10">
@@ -400,6 +381,28 @@ export function Footer({
               {lead.formatted_address ?? lead.city ?? "Ventura County, CA"}
             </div>
           </div>
+          <nav className="flex flex-wrap items-center gap-x-6 gap-y-2 text-sm" aria-label="Footer">
+            <Link href="/" className="text-zinc-600 hover:text-zinc-900">
+              Home
+            </Link>
+            <Link href="/services" className="text-zinc-600 hover:text-zinc-900">
+              Services
+            </Link>
+            <Link
+              href="/contact"
+              className={`font-semibold ${theme?.accent.text ?? "text-zinc-900"} hover:opacity-80`}
+            >
+              Contact
+            </Link>
+            {lead.phone && (
+              <a
+                href={`tel:${lead.phone}`}
+                className="text-zinc-600 hover:text-zinc-900"
+              >
+                {lead.phone}
+              </a>
+            )}
+          </nav>
           <KickbordBadge />
         </div>
         {credits.length > 0 && (

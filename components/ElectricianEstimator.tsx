@@ -9,7 +9,7 @@ import { trackCta } from "./PostHogProvider";
  *
  * Source ranges: Ventura County market averages, Q2 2026.
  */
-const SERVICES: Record<
+export const ELECTRICIAN_SERVICE_PRICING: Record<
   string,
   { label: string; min: number; max: number; unit?: string }
 > = {
@@ -39,8 +39,10 @@ export function ElectricianEstimator({
   slug: string;
   phone?: string | null;
 }) {
-  const [service, setService] = useState<keyof typeof SERVICES>("ev_charger");
-  const cfg = useMemo(() => SERVICES[service], [service]);
+  const [service, setService] = useState<keyof typeof ELECTRICIAN_SERVICE_PRICING>(
+    "ev_charger"
+  );
+  const cfg = useMemo(() => ELECTRICIAN_SERVICE_PRICING[service], [service]);
 
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm sm:p-8">
@@ -64,7 +66,7 @@ export function ElectricianEstimator({
           <select
             value={service}
             onChange={(e) => {
-              const v = e.target.value as keyof typeof SERVICES;
+              const v = e.target.value as keyof typeof ELECTRICIAN_SERVICE_PRICING;
               setService(v);
               trackCta("estimator_service_change", {
                 lead_id: leadId,
@@ -74,7 +76,7 @@ export function ElectricianEstimator({
             }}
             className="w-full rounded-md border border-zinc-300 bg-white px-3 py-2.5 text-zinc-900 focus:border-amber-400 focus:outline-none focus:ring-2 focus:ring-amber-400/30"
           >
-            {Object.entries(SERVICES).map(([k, v]) => (
+            {Object.entries(ELECTRICIAN_SERVICE_PRICING).map(([k, v]) => (
               <option key={k} value={k}>
                 {v.label}
               </option>
