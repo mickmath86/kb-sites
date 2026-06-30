@@ -1,8 +1,10 @@
+import Image from "next/image";
 import type { Lead, GeneratedCopy } from "@/lib/supabase";
 import { BookingButton } from "@/components/BookingButton";
 import { ElectricianEstimator } from "@/components/ElectricianEstimator";
 import { KickbordBadge } from "@/components/KickbordBadge";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { getLeadImages } from "@/lib/images";
 
 /**
  * Electrician trade template.
@@ -12,6 +14,7 @@ import { PostHogProvider } from "@/components/PostHogProvider";
  */
 export function ElectricianTemplate({ lead }: { lead: Lead }) {
   const copy = withFallbacks(lead);
+  const images = getLeadImages(lead.slug, "electrician");
   return (
     <div className="min-h-screen bg-zinc-50 text-zinc-900">
       <PostHogProvider
@@ -53,6 +56,19 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
 
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-br from-zinc-950 via-zinc-900 to-zinc-950 text-white">
+        {images.hero && (
+          <div className="absolute inset-0">
+            <Image
+              src={images.hero.src}
+              alt={images.hero.alt}
+              fill
+              priority
+              sizes="100vw"
+              className="object-cover opacity-30"
+            />
+            <div className="absolute inset-0 bg-gradient-to-br from-zinc-950/85 via-zinc-950/70 to-zinc-950/85" />
+          </div>
+        )}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(251,191,36,0.18),transparent_45%)]" />
         <div className="relative mx-auto max-w-6xl px-4 py-20 sm:px-6 sm:py-28">
           <div className="grid items-center gap-12 lg:grid-cols-2">
@@ -132,18 +148,34 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
           <p className="mt-4 text-lg text-zinc-600">{copy.services_intro}</p>
         </div>
         <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {copy.services.map((s, i) => (
-            <div
-              key={i}
-              className="rounded-xl border border-zinc-200 bg-white p-6 transition hover:border-amber-300 hover:shadow-md"
-            >
-              <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-amber-100 text-amber-700">
-                <BoltIcon className="h-4 w-4" />
+          {copy.services.map((s, i) => {
+            const tile = images.service_tiles[i % Math.max(images.service_tiles.length, 1)];
+            return (
+              <div
+                key={i}
+                className="group overflow-hidden rounded-xl border border-zinc-200 bg-white transition hover:border-amber-300 hover:shadow-md"
+              >
+                {tile && (
+                  <div className="relative h-40 w-full overflow-hidden bg-zinc-100">
+                    <Image
+                      src={tile.src}
+                      alt={tile.alt}
+                      fill
+                      sizes="(min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+                      className="object-cover transition duration-500 group-hover:scale-105"
+                    />
+                  </div>
+                )}
+                <div className="p-6">
+                  <div className="mb-3 inline-flex h-8 w-8 items-center justify-center rounded-md bg-amber-100 text-amber-700">
+                    <BoltIcon className="h-4 w-4" />
+                  </div>
+                  <h3 className="text-lg font-semibold text-zinc-900">{s.name}</h3>
+                  <p className="mt-1.5 text-sm text-zinc-600">{s.blurb}</p>
+                </div>
               </div>
-              <h3 className="text-lg font-semibold text-zinc-900">{s.name}</h3>
-              <p className="mt-1.5 text-sm text-zinc-600">{s.blurb}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </section>
 
@@ -159,21 +191,38 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
       {/* Why us */}
       <section className="bg-white py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
-          <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
-            Why homeowners pick us
-          </h2>
-          <div className="mt-10 grid gap-8 sm:grid-cols-3">
-            {copy.why_us.map((w, i) => (
-              <div key={i}>
-                <div className="text-2xl font-bold tabular-nums text-amber-500">
-                  0{i + 1}
-                </div>
-                <h3 className="mt-3 text-lg font-semibold text-zinc-900">
-                  {w.title}
-                </h3>
-                <p className="mt-2 text-sm text-zinc-600">{w.body}</p>
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div>
+              <h2 className="max-w-2xl text-3xl font-bold tracking-tight sm:text-4xl">
+                Why homeowners pick us
+              </h2>
+              <div className="mt-10 grid gap-8">
+                {copy.why_us.map((w, i) => (
+                  <div key={i} className="flex gap-4">
+                    <div className="shrink-0 text-2xl font-bold tabular-nums text-amber-500">
+                      0{i + 1}
+                    </div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-zinc-900">
+                        {w.title}
+                      </h3>
+                      <p className="mt-1 text-sm text-zinc-600">{w.body}</p>
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            </div>
+            {images.trust && (
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl bg-zinc-100 lg:justify-self-end">
+                <Image
+                  src={images.trust.src}
+                  alt={images.trust.alt}
+                  fill
+                  sizes="(min-width: 1024px) 40vw, 100vw"
+                  className="object-cover"
+                />
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -203,8 +252,20 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
       </section>
 
       {/* Final CTA */}
-      <section className="bg-zinc-950 py-20 text-white">
-        <div className="mx-auto max-w-3xl px-4 text-center sm:px-6">
+      <section className="relative overflow-hidden bg-zinc-950 py-20 text-white">
+        {images.finished && (
+          <div className="absolute inset-0">
+            <Image
+              src={images.finished.src}
+              alt={images.finished.alt}
+              fill
+              sizes="100vw"
+              className="object-cover opacity-25"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/85 via-zinc-950/70 to-zinc-950" />
+          </div>
+        )}
+        <div className="relative mx-auto max-w-3xl px-4 text-center sm:px-6">
           <h2 className="text-3xl font-bold tracking-tight sm:text-4xl">
             Get your project on the schedule.
           </h2>
@@ -231,16 +292,45 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
 
       {/* Footer */}
       <footer className="border-t border-zinc-200 bg-white py-10">
-        <div className="mx-auto flex max-w-6xl flex-col items-start justify-between gap-6 px-4 sm:flex-row sm:items-center sm:px-6">
-          <div>
-            <div className="text-sm font-semibold text-zinc-900">
-              {lead.company_name}
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
+            <div>
+              <div className="text-sm font-semibold text-zinc-900">
+                {lead.company_name}
+              </div>
+              <div className="text-xs text-zinc-500">
+                {lead.formatted_address ?? lead.city ?? "Ventura County, CA"}
+              </div>
             </div>
-            <div className="text-xs text-zinc-500">
-              {lead.formatted_address ?? lead.city ?? "Ventura County, CA"}
-            </div>
+            <KickbordBadge />
           </div>
-          <KickbordBadge />
+          {images.all_credits.length > 0 && (
+            <div className="mt-6 border-t border-zinc-100 pt-4 text-[10px] leading-relaxed text-zinc-400">
+              Photography:{" "}
+              {images.all_credits.map((c, i) => (
+                <span key={c.photographer_url}>
+                  <a
+                    href={c.photographer_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="underline-offset-2 hover:underline"
+                  >
+                    {c.photographer}
+                  </a>
+                  {i < images.all_credits.length - 1 ? ", " : ""}
+                </span>
+              ))}
+              {" "}via{" "}
+              <a
+                href="https://unsplash.com"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline-offset-2 hover:underline"
+              >
+                Unsplash
+              </a>
+            </div>
+          )}
         </div>
       </footer>
     </div>
