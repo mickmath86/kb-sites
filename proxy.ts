@@ -40,14 +40,20 @@ export function proxy(request: NextRequest) {
   const host = request.headers.get("host") ?? "";
   const { pathname } = request.nextUrl;
 
-  // Never rewrite Next internals, static, public, or API
+  // Never rewrite Next internals, static, public, or API.
+  // Anything with a file extension (e.g. /images/foo.jpg, /og.png, /fonts/x.woff2)
+  // is a public-folder asset and must be served as-is, not rewritten under /s/[slug].
+  const lastSegment = pathname.split("/").pop() ?? "";
+  const hasFileExtension = /\.[a-zA-Z0-9]{1,6}$/.test(lastSegment);
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/s/") ||
     pathname.startsWith("/api") ||
+    pathname.startsWith("/images/") ||
     pathname.startsWith("/favicon") ||
     pathname === "/robots.txt" ||
-    pathname === "/sitemap.xml"
+    pathname === "/sitemap.xml" ||
+    hasFileExtension
   ) {
     return NextResponse.next();
   }
