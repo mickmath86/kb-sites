@@ -64,9 +64,9 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
               fill
               priority
               sizes="100vw"
-              className="object-cover opacity-30"
+              className="object-cover opacity-55"
             />
-            <div className="absolute inset-0 bg-gradient-to-br from-zinc-950/85 via-zinc-950/70 to-zinc-950/85" />
+            <div className="absolute inset-0 bg-gradient-to-r from-zinc-950 via-zinc-950/60 to-zinc-950/30" />
           </div>
         )}
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(251,191,36,0.18),transparent_45%)]" />
@@ -260,7 +260,7 @@ export function ElectricianTemplate({ lead }: { lead: Lead }) {
               alt={images.finished.alt}
               fill
               sizes="100vw"
-              className="object-cover opacity-25"
+              className="object-cover opacity-40"
             />
             <div className="absolute inset-0 bg-gradient-to-b from-zinc-950/85 via-zinc-950/70 to-zinc-950" />
           </div>
