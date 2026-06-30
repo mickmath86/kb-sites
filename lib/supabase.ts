@@ -64,12 +64,13 @@ export type Lead = {
   lead_score: number | null;
   tier: string | null;
   generated_copy: GeneratedCopy | null;
+  template_variant: "A" | "B" | "C" | null;
 };
 
 // Columns selected for the public preview page render. Keep in sync with the
 // `Lead` type above and with the actual public.leads schema (see migrations).
 const LEAD_COLUMNS =
-  "id, slug, company_name, category, phone, formatted_address, city, state, postal_code, google_rating, review_count, current_website, site_status, icp_summary, services_offered, service_area, current_usps, content_gaps, lead_score, tier, generated_copy";
+  "id, slug, company_name, category, phone, formatted_address, city, state, postal_code, google_rating, review_count, current_website, site_status, icp_summary, services_offered, service_area, current_usps, content_gaps, lead_score, tier, generated_copy, template_variant";
 
 export async function getLeadBySlug(slug: string): Promise<Lead | null> {
   const supabase = getServerSupabase();

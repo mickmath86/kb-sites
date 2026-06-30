@@ -9,22 +9,29 @@ export function BookingButton({
   leadId,
   slug,
   source,
+  accentClasses,
 }: {
   label: string;
   variant?: "primary" | "secondary";
   leadId: string;
   slug: string;
   source: string;
+  /** Optional Tailwind classes to override the default amber primary styling.
+   * Used by templates with non-amber accent themes (e.g. indigo, orange).
+   * Should include bg / hover / text / shadow. Ignored for the secondary variant. */
+  accentClasses?: string;
 }) {
   const [open, setOpen] = useState(false);
 
   const base =
-    "inline-flex items-center justify-center rounded-md font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/70 focus-visible:ring-offset-2 focus-visible:ring-offset-zinc-950";
+    "inline-flex items-center justify-center rounded-md font-semibold transition focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2";
   const sizes = "h-12 px-6 text-base";
+  const defaultPrimary =
+    "bg-amber-400 text-zinc-950 hover:bg-amber-300 shadow-lg shadow-amber-500/20 focus-visible:ring-amber-400/70 focus-visible:ring-offset-zinc-950";
   const styles =
     variant === "primary"
-      ? "bg-amber-400 text-zinc-950 hover:bg-amber-300 shadow-lg shadow-amber-500/20"
-      : "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50";
+      ? accentClasses ?? defaultPrimary
+      : "border border-zinc-200 bg-white text-zinc-900 hover:bg-zinc-50 focus-visible:ring-zinc-400/70 focus-visible:ring-offset-white";
 
   return (
     <>
