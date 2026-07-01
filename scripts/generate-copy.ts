@@ -334,6 +334,69 @@ async function callDeepSeek(
   }
 }
 
+// ─── Repair layer ─────────────────────────────────────────────────────────────
+// DeepSeek occasionally returns near-correct JSON with the wrong top-level key
+// names (e.g. `headline` instead of `hero_headline`) or with empty items inside
+// otherwise valid arrays. Fix those up before validation.
+const KEY_ALIASES: Record<string, string> = {
+  headline: "hero_headline",
+  subhead: "hero_subhead",
+  subheading: "hero_subhead",
+  cta: "hero_cta_label",
+  cta_label: "hero_cta_label",
+  title: "meta_title",
+  description: "meta_description",
+  faqs: "faq",
+  trust_signals: "trust_strip",
+};
+
+function repair(input: unknown): unknown {
+  if (!input || typeof input !== "object") return input;
+  const src = input as Record<string, unknown>;
+  const out: Record<string, unknown> = { ...src };
+
+  // Alias top-level keys — only fill target if it is missing/empty.
+  for (const [from, to] of Object.entries(KEY_ALIASES)) {
+    if (from in out && (!(to in out) || out[to] == null || out[to] === "")) {
+      out[to] = out[from];
+    }
+  }
+
+  const nonEmptyStr = (v: unknown) =>
+    typeof v === "string" && v.trim().length > 0;
+
+  // Drop bad FAQ items.
+  if (Array.isArray(out.faq)) {
+    out.faq = out.faq.filter((x: unknown) => {
+      const it = x as { q?: unknown; a?: unknown };
+      return nonEmptyStr(it?.q) && nonEmptyStr(it?.a);
+    });
+  }
+
+  // Drop bad services items.
+  if (Array.isArray(out.services)) {
+    out.services = out.services.filter((x: unknown) => {
+      const it = x as { name?: unknown; blurb?: unknown };
+      return nonEmptyStr(it?.name) && nonEmptyStr(it?.blurb);
+    });
+  }
+
+  // Drop bad why_us items.
+  if (Array.isArray(out.why_us)) {
+    out.why_us = out.why_us.filter((x: unknown) => {
+      const it = x as { title?: unknown; body?: unknown };
+      return nonEmptyStr(it?.title) && nonEmptyStr(it?.body);
+    });
+  }
+
+  // Drop empty strings in trust_strip.
+  if (Array.isArray(out.trust_strip)) {
+    out.trust_strip = out.trust_strip.filter((x: unknown) => nonEmptyStr(x));
+  }
+
+  return out;
+}
+
 // ─── Validation ───────────────────────────────────────────────────────────────
 function validate(obj: unknown): { ok: true; copy: GeneratedCopy } | { ok: false; reason: string } {
   if (!obj || typeof obj !== "object") return { ok: false, reason: "not an object" };
@@ -424,12 +487,15 @@ async function revalidate(slug: string) {
 }
 
 // ─── Retry wrapper ────────────────────────────────────────────────────────────
-async function generateWithRetry(lead: Lead, maxAttempts = 2) {
+async function generateWithRetry(lead: Lead, maxAttempts = 3) {
   let lastErr: string | null = null;
+  let lastRaw: string | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const { json, usage, raw } = await callDeepSeek(buildPrompt(lead));
-      const check = validate(json);
+      lastRaw = raw;
+      const repaired = repair(json);
+      const check = validate(repaired);
       if (check.ok) return { copy: check.copy, usage, raw };
       lastErr = `validation failed: ${check.reason}`;
       if (argVerbose) console.log(`      attempt ${attempt} ${lastErr}`);
@@ -440,6 +506,22 @@ async function generateWithRetry(lead: Lead, maxAttempts = 2) {
     // Small backoff between attempts.
     if (attempt < maxAttempts) await new Promise((r) => setTimeout(r, 1500));
   }
+
+  // Persist the last raw JSON so we can inspect what the model actually returned.
+  if (lastRaw) {
+    try {
+      const failedDir = new URL("../.failed/", import.meta.url);
+      const fs = await import("node:fs/promises");
+      await fs.mkdir(failedDir, { recursive: true });
+      const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+      const outPath = new URL(`${lead.slug}-${stamp}.json`, failedDir);
+      await fs.writeFile(outPath, lastRaw, "utf8");
+      if (argVerbose) console.log(`      saved raw to ${outPath.pathname}`);
+    } catch (writeErr) {
+      if (argVerbose) console.log(`      failed to save raw: ${(writeErr as Error).message}`);
+    }
+  }
+
   throw new Error(lastErr ?? "unknown failure");
 }
 
