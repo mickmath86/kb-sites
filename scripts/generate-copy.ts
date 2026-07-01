@@ -220,9 +220,9 @@ function buildPrompt(lead: Lead): { role: "system" | "user"; content: string }[]
         [
           "You write conversion-focused homepage copy for local trade businesses in California's 805 area (Ventura County + Santa Barbara County).",
           "Voice: confident, warm, and local. Plain English. Read like a trusted neighbor, not a corporate brochure.",
-          "Never use exclamation points, em dashes, or emojis.",
-          "Never fabricate certifications, awards, years-in-business, or specific numbers not provided in the brief.",
-          "Never copy any real customer review verbatim — testimonials must be synthesized from general themes.",
+          "PUNCTUATION RULES (strict): No exclamation points. No em dashes (—) or en dashes (–). No emojis. Use a period, comma, or colon instead. If you feel the urge to use an em dash, replace it with a period and start a new sentence.",
+          "FABRICATION RULES (strict): Only use facts from the brief. Never invent a founding year, a 'since YYYY' claim, 'family-owned', 'family-run', 'second-generation', 'third-generation', years of experience, license numbers, certifications, awards, warranties, guarantees, dollar amounts, response-time promises, or any numeric claim not present in the brief.",
+          "Never copy any real customer review verbatim. Testimonials must be synthesized from general themes and stay under 140 characters.",
           "Return STRICT JSON only, no markdown code fences.",
         ].join(" "),
     },
@@ -250,10 +250,13 @@ function buildPrompt(lead: Lead): { role: "system" | "user"; content: string }[]
         `- 4–6 items in services`,
         `- exactly 3 items in why_us`,
         `- 3–5 items in faq`,
-        `- testimonial_quote MUST be synthesized (never a real review)`,
+        `- testimonial_quote MUST be synthesized (never a real review) and MUST be under 140 characters including quotes`,
         `- If rating and review count are provided, weave them naturally into ONE of: hero_subhead, trust_strip, or testimonial_author`,
         `- hero_cta_label should be action-led: "Get a Free Quote", "Book a Visit", "Talk to an Electrician", etc.`,
-        `- trust_strip should feel concrete: licensing, insured, ${lead.google_rating ?? ""}★ rated, same-day response, warranty, family-owned, etc.`,
+        `- ABSOLUTELY NO em dashes (—) or en dashes (–) anywhere in the output. Use periods, commas, or colons. If your draft contains — or –, rewrite that sentence before returning.`,
+        `- trust_strip items must be SAFE claims only. Allowed examples: "Licensed & insured", "${lead.google_rating ?? "5"}★ on Google", "${lead.review_count ?? ""} Google reviews", "Free estimates", "Upfront pricing", "Local ${trade.toLowerCase()}", "Serving ${city}". FORBIDDEN: any 'since YYYY', 'family-owned', 'family-run', 'X years experience', 'X-year warranty', 'same-day service', 'X-hour response', 'satisfaction guaranteed', or any specific numeric claim not in the brief.`,
+        `- No 'since YYYY', founding year, or 'X years in business' claims ANYWHERE in the copy — not in hero_subhead, why_us, services_intro, service_area_line, meta_description, or anywhere else.`,
+        `- No 'family-owned' / 'family-run' / 'family-operated' claims ANYWHERE.`,
       ].join("\n"),
     },
   ];
@@ -350,10 +353,52 @@ const KEY_ALIASES: Record<string, string> = {
   trust_signals: "trust_strip",
 };
 
+// Voice-scrubbing: substitute em/en dashes with periods, strip common
+// fabricated-claim patterns (since YYYY, family-owned, X-year warranty).
+const FORBIDDEN_CLAIM_PATTERNS: RegExp[] = [
+  /\bsince\s+(?:19|20)\d{2}\b/gi,
+  /\bestablished\s+(?:in\s+)?(?:19|20)\d{2}\b/gi,
+  /\bfamily[\s-]?(?:owned|run|operated)(?:\s+(?:and|&)\s+operated)?\b/gi,
+  /\b\d+\+?\s*years?\s+(?:of\s+)?(?:experience|in\s+business|in\s+the\s+business|serving)\b/gi,
+  /\b\d+\s*[-\s]?year\s+warranty\b/gi,
+  /\bsatisfaction\s+guaranteed\b/gi,
+  /\bsecond[-\s]generation\b/gi,
+  /\bthird[-\s]generation\b/gi,
+];
+
+function scrubText(v: unknown): unknown {
+  if (typeof v !== "string") return v;
+  let s = v;
+  // Replace em/en dashes with periods (with a trailing space if next char is a letter).
+  s = s.replace(/\s*[\u2014\u2013]\s*/g, ". ");
+  // Remove forbidden fabricated claims.
+  for (const rx of FORBIDDEN_CLAIM_PATTERNS) {
+    s = s.replace(rx, "");
+  }
+  // Clean up leftover artifacts: doubled periods, spaces before punctuation, doubled spaces.
+  s = s.replace(/\s+([,.!?;:])/g, "$1");
+  s = s.replace(/\.{2,}/g, ".");
+  s = s.replace(/\s{2,}/g, " ");
+  return s.trim();
+}
+
+function scrubDeep(v: unknown): unknown {
+  if (typeof v === "string") return scrubText(v);
+  if (Array.isArray(v)) return v.map(scrubDeep);
+  if (v && typeof v === "object") {
+    const out: Record<string, unknown> = {};
+    for (const [k, val] of Object.entries(v as Record<string, unknown>)) {
+      out[k] = scrubDeep(val);
+    }
+    return out;
+  }
+  return v;
+}
+
 function repair(input: unknown): unknown {
   if (!input || typeof input !== "object") return input;
   const src = input as Record<string, unknown>;
-  const out: Record<string, unknown> = { ...src };
+  let out: Record<string, unknown> = { ...src };
 
   // Alias top-level keys — only fill target if it is missing/empty.
   for (const [from, to] of Object.entries(KEY_ALIASES)) {
@@ -361,6 +406,9 @@ function repair(input: unknown): unknown {
       out[to] = out[from];
     }
   }
+
+  // Voice-scrub every string in the tree.
+  out = scrubDeep(out) as Record<string, unknown>;
 
   const nonEmptyStr = (v: unknown) =>
     typeof v === "string" && v.trim().length > 0;
@@ -389,9 +437,40 @@ function repair(input: unknown): unknown {
     });
   }
 
-  // Drop empty strings in trust_strip.
+  // Drop empty or too-short strings in trust_strip (post-scrub some may have
+  // become orphan stubs like 'Business' after removing 'Family-Owned ').
   if (Array.isArray(out.trust_strip)) {
-    out.trust_strip = out.trust_strip.filter((x: unknown) => nonEmptyStr(x));
+    out.trust_strip = out.trust_strip.filter(
+      (x: unknown) => typeof x === "string" && x.trim().length >= 8
+    );
+  }
+
+  // Also drop faq/services/why_us items that became empty after scrubbing.
+  if (Array.isArray(out.faq)) {
+    out.faq = out.faq.filter((x: unknown) => {
+      const it = x as { q?: unknown; a?: unknown };
+      return nonEmptyStr(it?.q) && nonEmptyStr(it?.a);
+    });
+  }
+  if (Array.isArray(out.services)) {
+    out.services = out.services.filter((x: unknown) => {
+      const it = x as { name?: unknown; blurb?: unknown };
+      return nonEmptyStr(it?.name) && nonEmptyStr(it?.blurb);
+    });
+  }
+  if (Array.isArray(out.why_us)) {
+    out.why_us = out.why_us.filter((x: unknown) => {
+      const it = x as { title?: unknown; body?: unknown };
+      return nonEmptyStr(it?.title) && nonEmptyStr(it?.body);
+    });
+  }
+
+  // Clamp testimonial to 140 chars (soft — cut at last word boundary).
+  if (typeof out.testimonial_quote === "string" && out.testimonial_quote.length > 140) {
+    const raw = out.testimonial_quote.replace(/^[“"']+|[”"']+$/g, "");
+    const capped = raw.slice(0, 137);
+    const lastSpace = capped.lastIndexOf(" ");
+    out.testimonial_quote = (lastSpace > 100 ? capped.slice(0, lastSpace) : capped).replace(/[,;:.!?\s]+$/, "") + ".";
   }
 
   return out;
