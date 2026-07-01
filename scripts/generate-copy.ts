@@ -266,27 +266,55 @@ type Usage = {
   total_tokens?: number;
 };
 
+const OPENROUTER_TIMEOUT_MS = Number(process.env.OPENROUTER_TIMEOUT_MS ?? 90_000);
+
 async function callDeepSeek(
   messages: { role: string; content: string }[]
 ): Promise<{ json: unknown; usage: Usage; raw: string }> {
-  const res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${OPENROUTER}`,
-      "Content-Type": "application/json",
-      "HTTP-Referer": "https://kickbord.com",
-      "X-Title": "Kickbord Template Factory",
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-    }),
-  });
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), OPENROUTER_TIMEOUT_MS);
+  const startedAt = Date.now();
+
+  if (argVerbose) {
+    process.stdout.write("[calling OpenRouter...] ");
+  }
+
+  let res: Response;
+  try {
+    res = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${OPENROUTER}`,
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://kickbord.com",
+        "X-Title": "Kickbord Template Factory",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        temperature: 0.7,
+        response_format: { type: "json_object" },
+      }),
+      signal: controller.signal,
+    });
+  } catch (e) {
+    clearTimeout(timeout);
+    const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+    if ((e as Error).name === "AbortError") {
+      throw new Error(`OpenRouter timed out after ${elapsed}s (limit: ${OPENROUTER_TIMEOUT_MS / 1000}s)`);
+    }
+    throw new Error(`OpenRouter fetch threw after ${elapsed}s: ${(e as Error).message}`);
+  }
+  clearTimeout(timeout);
+
+  const elapsed = ((Date.now() - startedAt) / 1000).toFixed(1);
+  if (argVerbose) {
+    process.stdout.write(`[${res.status} in ${elapsed}s] `);
+  }
+
   if (!res.ok) {
     const txt = await res.text();
-    throw new Error(`OpenRouter ${res.status}: ${txt.slice(0, 400)}`);
+    throw new Error(`OpenRouter ${res.status} after ${elapsed}s: ${txt.slice(0, 400)}`);
   }
   const body = (await res.json()) as {
     choices: { message: { content: string } }[];
@@ -297,7 +325,13 @@ async function callDeepSeek(
     .replace(/^```(?:json)?\s*/i, "")
     .replace(/```\s*$/i, "")
     .trim();
-  return { json: JSON.parse(cleaned), usage: body.usage ?? {}, raw };
+  try {
+    return { json: JSON.parse(cleaned), usage: body.usage ?? {}, raw };
+  } catch (e) {
+    throw new Error(
+      `JSON parse failed: ${(e as Error).message}. First 200 chars of raw: ${cleaned.slice(0, 200)}`
+    );
+  }
 }
 
 // ─── Validation ───────────────────────────────────────────────────────────────
