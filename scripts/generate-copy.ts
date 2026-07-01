@@ -57,6 +57,23 @@ if (!OPENROUTER) {
   process.exit(1);
 }
 
+// @supabase/supabase-js eagerly constructs a RealtimeClient inside createClient(),
+// and on Node < 22 without native WebSocket it throws. This script never
+// subscribes to realtime, so we shim globalThis.WebSocket with a no-op class
+// before creating the client. Node 22+ has WebSocket natively and this is a no-op.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+if (typeof (globalThis as any).WebSocket === "undefined") {
+  class NoopWebSocket {
+    constructor() {
+      throw new Error(
+        "WebSocket use is not supported in scripts/generate-copy.ts (realtime is disabled)."
+      );
+    }
+  }
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (globalThis as any).WebSocket = NoopWebSocket;
+}
+
 const supabase = createClient(SUPABASE_URL, SERVICE_KEY, {
   auth: { persistSession: false, autoRefreshToken: false },
 });
